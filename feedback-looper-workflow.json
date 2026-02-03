@@ -1,0 +1,74 @@
+{
+  "name": "The Feedback Looper - AI Sentiment Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "feedback-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook (Typeform)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "prompt": "Analyze the sentiment of this feedback: {{$json[\"body\"][\"message\"]}}. \nReturn strictly JSON: {\"sentiment\": \"Positive/Negative\", \"category\": \"Bug/Feature/Praise\", \"summary\": \"One sentence summary\"}"
+      },
+      "name": "OpenAI Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"category\"]}}",
+              "operation": "contains",
+              "value2": "Bug"
+            }
+          ]
+        }
+      },
+      "name": "If Bug",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "channel": "engineering-bugs",
+        "text": "🚨 New Bug Reported:\nSummary: {{$json[\"summary\"]}}\nOriginal: {{$json[\"body\"][\"message\"]}}"
+      },
+      "name": "Slack Engineering",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "channel": "customer-love",
+        "text": "❤️ New Praise:\nSummary: {{$json[\"summary\"]}}"
+      },
+      "name": "Slack Sales",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [700, 400]
+    }
+  ],
+  "connections": {
+    "Webhook (Typeform)": { "main": [[{ "node": "OpenAI Analysis", "type": "main", "index": 0 }]] },
+    "OpenAI Analysis": { "main": [[{ "node": "If Bug", "type": "main", "index": 0 }]] },
+    "If Bug": {
+      "main": [
+        [{ "node": "Slack Engineering", "type": "main", "index": 0 }],
+        [{ "node": "Slack Sales", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}
